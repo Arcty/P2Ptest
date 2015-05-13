@@ -2,6 +2,7 @@ package tbs.p2p;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
@@ -48,7 +49,7 @@ public class MainActivity extends Activity {
         public void onPeersAvailable(final WifiP2pDeviceList wifiP2pDeviceList) {
             peers = wifiP2pDeviceList.getDeviceList();
             for (WifiP2pDevice wifiP2pDevice : peers) {
-                Log.e("peerListenerFound", wifiP2pDevice.deviceName + " (" + wifiP2pDevice.deviceAddress + ")");
+                Log.e("p2ppeerListenerFound", wifiP2pDevice.deviceName + " (" + wifiP2pDevice.deviceAddress + ")");
             }
             listView.setAdapter(new P2PAdapter());
             listView.setOnItemClickListener(new ListView.OnItemClickListener() {
@@ -81,7 +82,12 @@ public class MainActivity extends Activity {
         manager.discoverPeers(channel, wifiP2PActionListener);
         listView = (ListView) findViewById(R.id.list);
         refresh = (Button) findViewById(R.id.refresh);
-
+        refresh.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                P2PService.enqueueMessage(new Message("mikeTest: " + System.currentTimeMillis(), Message.MessageType.SEND_MESSAGE));
+            }
+        });
     }
 
     protected void onResume() {
@@ -92,7 +98,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         P2PService.destroy();
-        unregisterReceiver(receiver);
+        try {
+            unregisterReceiver(receiver);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         super.onDestroy();
     }
 
@@ -107,17 +117,17 @@ public class MainActivity extends Activity {
         //Todo make a listview...
         config.deviceAddress = device.deviceAddress;
         manager.connect(channel, config, new ActionListener() {
-
             @Override
             public void onSuccess() {
-                Log.e("connecting to", device.deviceName + " (" + device.deviceAddress + ")");
-                MainActivity.toast("connected to" + device.deviceName + " (" + device.deviceAddress + ")");
+                Log.e("p2pconnecting to", device.deviceName + " (" + device.deviceAddress + ")");
+                MainActivity.toast("p2pconnected to" + device.deviceName + " (" + device.deviceAddress + ")");
                 P2PService.setCurrentlyPairedDevice(device);
+                mainActivity.startService(new Intent(mainActivity, P2PService.class));
             }
 
             @Override
             public void onFailure(int reason) {
-                Log.e("failed to connect to", device.deviceName + " (" + device.deviceAddress + ")");
+                Log.e("p2pfailed to connect to", device.deviceName + " (" + device.deviceAddress + ")");
             }
         });
     }
