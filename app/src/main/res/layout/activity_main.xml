@@ -15,26 +15,31 @@
             android:layout_above="@+id/cont"/>
     <LinearLayout
             android:layout_alignParentBottom="true"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:id="@+id/cont"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content">
 
 
         <!--<Button-->
-                <!--android:layout_weight="1"-->
-                <!--android:id="@+id/client"-->
-                <!--android:layout_width="fill_parent"-->
-                <!--android:layout_height="58dp"-->
-                <!--android:text="Client"/>-->
+        <!--android:layout_weight="1"-->
+        <!--android:id="@+id/client"-->
+        <!--android:layout_width="fill_parent"-->
+        <!--android:layout_height="58dp"-->
+        <!--android:text="Client"/>-->
 
         <!--<Button-->
-                <!--android:layout_weight="1"-->
-                <!--android:id="@+id/server"-->
-                <!--android:layout_width="fill_parent"-->
-                <!--android:layout_height="58dp"-->
-                <!--android:text="Server"/>-->
+        <!--android:layout_weight="1"-->
+        <!--android:id="@+id/server"-->
+        <!--android:layout_width="fill_parent"-->
+        <!--android:layout_height="58dp"-->
+        <!--android:text="Server"/>-->
 
+        <EditText
+                android:layout_width="fill_parent" android:layout_height="wrap_content"
+                android:hint="Enter message"
+                android:id="@+id/message"
+                />
         <Button
                 android:layout_weight="1"
                 android:id="@+id/refresh"

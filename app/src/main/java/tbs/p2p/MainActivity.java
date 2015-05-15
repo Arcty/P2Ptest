@@ -12,12 +12,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.BaseAdapter;
-import android.widget.Button;
-import android.widget.ListView;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.widget.*;
 
 import java.util.Collection;
 
@@ -34,7 +29,6 @@ public class MainActivity extends Activity {
         public void onSuccess() {
             //TODO devices found >> do something about it
         }
-
         @Override
         public void onFailure(int i) {
             //TODO devices not found >> do something about it (rescan?)
@@ -52,7 +46,6 @@ public class MainActivity extends Activity {
                 public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                     clickedDevice = (WifiP2pDevice) peers.toArray()[i];
                     connectToDevice(clickedDevice);
-
                 }
             });
         }
@@ -80,6 +73,7 @@ public class MainActivity extends Activity {
     public static final WifiP2pConfig config = new WifiP2pConfig();
     public static ListView listView;
     private static WifiP2pDevice clickedDevice;
+    private static EditText message;
     public static Button refresh;
 
     @Override
@@ -103,14 +97,15 @@ public class MainActivity extends Activity {
         mainActivity = this;
         manager.discoverPeers(channel, wifiP2PActionListener);
         listView = (ListView) findViewById(R.id.list);
+        message = (EditText) findViewById(R.id.message);
         refresh = (Button) findViewById(R.id.refresh);
         refresh.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                P2PService.enqueueMessage(new Message("mikeTest: " + System.currentTimeMillis(), Message.MessageType.SEND_MESSAGE));
+                P2PService.enqueueMessage(new Message(message.getText().toString(), Message.MessageType.SEND_MESSAGE));
+                message.setText("");
             }
         });
-
         mainActivity.startService(new Intent(mainActivity, P2PService.class));
     }
 
