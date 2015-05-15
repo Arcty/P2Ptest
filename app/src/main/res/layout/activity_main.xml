@@ -1,23 +1,46 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:paddingBottom="4dp"
-    android:paddingLeft="4dp"
-    android:paddingRight="4dp"
-    android:paddingTop="4dp"
-    tools:context=".MainActivity">
+                xmlns:tools="http://schemas.android.com/tools"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingBottom="4dp"
+                android:paddingLeft="4dp"
+                android:paddingRight="4dp"
+                android:paddingTop="4dp"
+                tools:context=".MainActivity">
 
     <ListView
-        android:id="@+id/list"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:layout_above="@+id/refresh" />
+            android:id="@+id/list"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:layout_above="@+id/cont"/>
+    <LinearLayout
+            android:layout_alignParentBottom="true"
+            android:orientation="horizontal"
+            android:id="@+id/cont"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content">
 
-    <Button
-        android:id="@+id/refresh"
-        android:layout_width="fill_parent"
-        android:layout_height="58dp"
-        android:layout_alignParentBottom="true"
-        android:text="refresh" />
+
+        <!--<Button-->
+                <!--android:layout_weight="1"-->
+                <!--android:id="@+id/client"-->
+                <!--android:layout_width="fill_parent"-->
+                <!--android:layout_height="58dp"-->
+                <!--android:text="Client"/>-->
+
+        <!--<Button-->
+                <!--android:layout_weight="1"-->
+                <!--android:id="@+id/server"-->
+                <!--android:layout_width="fill_parent"-->
+                <!--android:layout_height="58dp"-->
+                <!--android:text="Server"/>-->
+
+        <Button
+                android:layout_weight="1"
+                android:id="@+id/refresh"
+                android:layout_width="fill_parent"
+                android:layout_height="58dp"
+                android:text="Send msg"/>
+
+    </LinearLayout>
 </RelativeLayout>
