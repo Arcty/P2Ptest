@@ -29,6 +29,7 @@ public class MainActivity extends Activity {
         public void onSuccess() {
             //TODO devices found >> do something about it
         }
+
         @Override
         public void onFailure(int i) {
             //TODO devices not found >> do something about it (rescan?)
@@ -112,6 +113,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         registerReceiver(receiver, intentFilter);
+        //TODO if P2pser.isStop...
     }
 
     @Override
@@ -151,7 +153,8 @@ public class MainActivity extends Activity {
     }
 
     public static void requestConnectionInfo() {
-        manager.requestConnectionInfo(channel, connectionInfoListener);
+        if (!P2PService.isActive())
+            manager.requestConnectionInfo(channel, connectionInfoListener);
     }
 
     public static WifiP2pDevice getConnectedPeer() {

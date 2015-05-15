@@ -55,7 +55,7 @@ public class P2PBroadcastReceiver extends BroadcastReceiver {
             }
             if (networkState.isConnected()) {
                 MainActivity.toast("connected");
-                wifiP2pManager.requestConnectionInfo(mChannel, MainActivity.connectionInfoListener);
+                MainActivity.requestConnectionInfo();
             }
 
         } else if (WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION.equals(action)) {

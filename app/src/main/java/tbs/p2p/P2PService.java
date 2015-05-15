@@ -31,7 +31,7 @@ public class P2PService extends Service {
     public static final P2PServerRunnable p2PServerRunnable = new P2PServerRunnable();
     private static InputStream inputStream;
     private static OutputStream outputStream;
-    public static boolean stop = false, currentlySendingSomething = false;
+    private static boolean stop = false, currentlySendingSomething = false;
     private static final ArrayList<Message> messages = new ArrayList<>();
     public static ServerSocket serverSocket;
     private static Socket socketFromServer, socketFromClient;
@@ -46,14 +46,9 @@ public class P2PService extends Service {
 
     public static void setCurrentlyPairedDevice(WifiP2pDevice device) {
         P2PService.currentlyPairedDevice = device;
-
         if (!(device == null)) {
             getIpAddress(device.deviceAddress);
         }
-        //TODO  if (device != null)
-        //    getClientSocketThreadVoid();
-        //Todo
-        //MainActivity.toast("paired to:" + (device == null ? "null" : (device.deviceName + " (" + device.deviceAddress + ")")));
     }
 
     @Override
@@ -65,48 +60,30 @@ public class P2PService extends Service {
     public void onCreate() {
         super.onCreate();
         context = getApplicationContext();
-        new Thread(new InitRunnable()).start();
     }
 
     public static void getClientSocketThreadVoid(final String hostIP) {
         log("getClientSocket");
+        if (isActive())
+            return;
         getClientSocketThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
                     host = hostIP;
-                    toast("about to try connect");
-//                    if (host == null || host.length() < 4) {
-//                        toast("failed to get IP :" + (host == null ? "" : host));
-//                        return;
-//                    } else {
-//                        toast("host :" + host);
-//                    }
+                    toast("connecting in 250ms");
                     try {
                         Thread.sleep(250);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
 
-
-                    toast("connecting");
-
                     while (socketFromClient == null || !socketFromClient.isConnected()) {
-                        toast("host :" + host);
                         if (host.startsWith("/"))
                             host = host.split("/")[1];
                         socketFromClient = new Socket(host, 8888);
                     }
                     startMainThread();
-//                    try {
-//                        getServerSocketThread.interrupt();
-//                        getServerSocketThread.stop();
-//                        getServerSocketThread.join();
-//                        serverSocket = null;
-//                    } catch (Exception e) {
-//                        e.printStackTrace();
-//                    }
-
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -117,6 +94,8 @@ public class P2PService extends Service {
 
     public static void getServerSocketThreadVoid() {
         log("getServerSocket");
+        if (isActive())
+            return;
         getServerSocketThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -131,16 +110,6 @@ public class P2PService extends Service {
                         socketFromServer = serverSocket.accept();
                     }
                     log("getServerSocket3");
-                    log("'is Server > " + serverSocket.getInetAddress());
-//
-//                    try {
-//                        getClientSocketThread.interrupt();
-//                        getClientSocketThread.stop();
-//                        getClientSocketThread.join();
-//                        socketFromClient = null;
-//                    } catch (Exception e) {
-//                        e.printStackTrace();
-//                    }
                     startMainThread();
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -149,21 +118,6 @@ public class P2PService extends Service {
             }
         });
         getServerSocketThread.start();
-    }
-
-    public static class InitRunnable implements Runnable {
-        @Override
-        public void run() {
-            Log.e("p2pinit thread", "started");
-            try {
-                //TODO getServerSocketThreadVoid();
-                cr = context.getContentResolver();
-            } catch (Exception e) {
-                Log.e("P2PServiceOnCreate", e.toString());
-            }
-
-
-        }
     }
 
     public static void startMainThread() {
@@ -206,20 +160,6 @@ public class P2PService extends Service {
             while (!stop) {
                 if (!currentlySendingSomething && messages != null && messages.size() > 0) {
                     sendMessage();
-                    try {
-                        log(String.format("inputAvailable : " + inputStream.available()));
-                        try {
-                            final String hostName = wifiInfo.groupOwnerAddress.getHostName();
-                            log("host name :" + hostName);
-                            log(String.format("wifiInfo ip = %s vs %s", hostName, getIpAddress()));
-                        } catch (Exception e) {
-                            log(e.toString());
-                        }
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-
                 }
                 try {
                     Thread.sleep(250);
@@ -306,6 +246,8 @@ public class P2PService extends Service {
                 break;
             case SEND_FILE:
                 //Todo message structure >> fileName + sep + file
+                if (cr == null)
+                    cr = context.getContentResolver();
                 try {
                     final File file = new File(message.message);
                     copyFile(file.getName(), cr.openInputStream(Uri.parse(Environment.getExternalStorageDirectory().getPath() + "a014.jpg")));
@@ -333,7 +275,6 @@ public class P2PService extends Service {
             outputStream.flush();
             currentlySendingSomething = false;
         } catch (IOException e) {
-            Log.e("p2pfailed to send simple text : " + text, e.toString());
             return false;
         }
         return true;
@@ -363,6 +304,7 @@ public class P2PService extends Service {
 
     public static void destroy() {
         stop = true;
+        log("destroy called");
         try {
             socketFromServer.close();
         } catch (Exception e) {
@@ -381,34 +323,21 @@ public class P2PService extends Service {
     }
 
     public static void onMessageReceived(String message) {
-        Log.e("message received", message);
         toast("message received" + message);
     }
 
     public static String getIpAddress() {
         try {
-            final List<NetworkInterface> interfaces = Collections
-                    .list(NetworkInterface.getNetworkInterfaces());
-        /*
-         * for (NetworkInterface networkInterface : interfaces) { Log.v(TAG,
-         * "interface name " + networkInterface.getName() + "mac = " +
-         * getMACAddress(networkInterface.getName())); }
-         */
-
+            final List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
             for (NetworkInterface intf : interfaces) {
                 if (!intf.getName().contains("p2p"))
                     continue;
 
-                Log.e("getIPAddress", intf.getName() + "   " + getMACAddress(intf.getName()));
                 final List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
 
                 for (InetAddress addr : addrs) {
-                    // Log.v(TAG, "inside");
                     if (!addr.isLoopbackAddress()) {
-                        // Log.v(TAG, "isnt loopback");
                         String sAddr = addr.getHostAddress().toUpperCase();
-                        Log.v("getIPAddress", "ip=" + sAddr);
-
                         boolean isIPv4 = InetAddressUtils.isIPv4Address(sAddr);
 
                         if (isIPv4 && sAddr.contains("192.168.49.")) {
@@ -457,7 +386,6 @@ public class P2PService extends Service {
     }
 
     public static void toast(String msg) {
-        log("tstd > >" + msg);
         MainActivity.toast(msg);
     }
 
@@ -501,5 +429,8 @@ public class P2PService extends Service {
         return "";
     }
 
+    public static boolean isActive() {
+        return getServerSocketThread != null && getSocket() != null && getSocket().isConnected();
+    }
 
 }
