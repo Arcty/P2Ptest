@@ -14,7 +14,6 @@ import android.util.Log;
  * Created by Michael on 5/12/2015.
  */
 public class P2PBroadcastReceiver extends BroadcastReceiver {
-
     private WifiP2pManager wifiP2pManager;
     private Channel mChannel;
     private static P2PManager p2PManager;
@@ -47,7 +46,7 @@ public class P2PBroadcastReceiver extends BroadcastReceiver {
         } else if (WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION.equals(action)) {
             // Respond to new connection or disconnections
             Log.e("p2pBroadCast", "Connection changed");
-            NetworkInfo networkState = intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
+            final NetworkInfo networkState = intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
             WifiP2pInfo wifiInfo = intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_INFO);
             p2PManager.setCurrentlyPairedDevice((WifiP2pDevice) intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE));
             while (wifiInfo == null) {

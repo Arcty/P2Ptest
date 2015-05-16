@@ -83,8 +83,20 @@ public class P2PManager {
         public void onPeersAvailable(final WifiP2pDeviceList wifiP2pDeviceList) {
             //TODO make refresh button visible
             peers = wifiP2pDeviceList.getDeviceList();
-            if (dialog != null && dialog.isShowing())
-                dialog.dismiss();
+            if (dialog != null && dialog.isShowing()) {
+                try {
+                    activity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+
+                            dialog.dismiss();
+                        }
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
 
             if (peers.size() > 0)
                 showDeviceDialog();
@@ -264,9 +276,9 @@ public class P2PManager {
                         e.printStackTrace();
                     }
 
+                    if (host.startsWith("/"))
+                        host = host.split("/")[1].trim();
                     while (socketFromClient == null || !socketFromClient.isConnected()) {
-                        if (host.startsWith("/"))
-                            host = host.split("/")[1];
                         socketFromClient = new Socket(host, 8888);
                     }
                     startMainThread();
@@ -287,11 +299,12 @@ public class P2PManager {
             public void run() {
                 log("getServerSocket1");
                 socketFromServer = new Socket();
+                socketFromServer = null;
                 try {
                     serverSocket = new ServerSocket(8888);
                     log("getServerSocket2");
                     toast("accepting");
-                    socketFromServer = null;
+
                     while (socketFromServer == null) {
                         socketFromServer = serverSocket.accept();
                     }
@@ -325,6 +338,7 @@ public class P2PManager {
         public void run() {
             listenerThread = new Thread(p2pClientRunnable);
             listenerThread.start();
+            //TODO remove for final release
             enqueueMessage(new Message("mikeCheck 1,2,1,2", Message.MessageType.SEND_MESSAGE));
             log("mainThread step 1");
             while (getSocket() == null) {
@@ -412,7 +426,7 @@ public class P2PManager {
                         }
                     }
                 } catch (Exception e) {
-
+                    e.printStackTrace();
                 }
             }
 
@@ -498,7 +512,7 @@ public class P2PManager {
         stop = true;
         log("destroy called");
         try {
-            socketFromServer.close();
+            getSocket().close();
         } catch (Exception e) {
             e.printStackTrace();
         }
