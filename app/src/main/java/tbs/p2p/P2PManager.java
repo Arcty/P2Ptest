@@ -1,6 +1,7 @@
 package tbs.p2p;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.Dialog;
 import android.app.Service;
 import android.bluetooth.BluetoothClass;
@@ -46,8 +47,6 @@ public class P2PManager extends Service {
     public static ServerSocket serverSocket;
     private static Socket socketFromServer, socketFromClient;
     private static String host;
-    public static WifiP2pInfo wifiInfo = null;
-    private static WifiP2pDevice currentlyPairedDevice;
     public static ContentResolver cr;
     private static Activity activity;
     private static Dialog dialog;
@@ -62,11 +61,16 @@ public class P2PManager extends Service {
     public static P2PListener p2PListener;
     private static boolean dialogShown, tryingToConnect, connected;
 
+    public P2PManager() {
+        super();
+    }
 
     public P2PManager(Activity activity, P2PListener p2PListener, boolean startScan) {
         this.activity = activity;
         this.p2PListener = p2PListener;
 
+        if (isServiceRunning() || connected || tryingToConnect)
+            return;
         activity.startService(new Intent(activity, P2PManager.class));
         if (startScan)
             startScan();
@@ -113,6 +117,11 @@ public class P2PManager extends Service {
                 toast("No peers found, try again");
         }
     };
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        return Service.START_STICKY;//Service.START_STICKY;
+    }
 
     public static WifiP2pManager.ConnectionInfoListener connectionInfoListener = new WifiP2pManager.ConnectionInfoListener() {
         @Override
@@ -187,7 +196,10 @@ public class P2PManager extends Service {
             @Override
             public void onSuccess() {
                 //TODO connected to device start service here and in broadcast receiver
-                setCurrentlyPairedDevice(device);
+                MainActivity.toast("connected");
+                if (p2PListener != null)
+                    p2PListener.onDevicesConnected();
+                requestConnectionInfo();
             }
 
             @Override
@@ -262,18 +274,6 @@ public class P2PManager extends Service {
         return peer;
     }
 
-
-    public static WifiP2pDevice getCurrentlyPairedDevice() {
-        return currentlyPairedDevice;
-    }
-
-    public static void setCurrentlyPairedDevice(WifiP2pDevice device) {
-        currentlyPairedDevice = device;
-        if (!(device == null)) {
-            getIpAddress(device.deviceAddress);
-        }
-    }
-
     public static void getClientSocketThreadVoid(final String hostIP) {
         log("getClientSocket");
         if (isActive())
@@ -308,7 +308,7 @@ public class P2PManager extends Service {
 
     public static void getServerSocketThreadVoid() {
         log("getServerSocket");
-        if (isActive())
+        if (isActive() || connected)
             return;
         tryingToConnect = true;
         getServerSocketThread = new Thread(new Runnable() {
@@ -549,61 +549,11 @@ public class P2PManager extends Service {
         }
     }
 
-
-//    public static String getIpAddress() {
-//        try {
-//            final List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
-//            for (NetworkInterface intf : interfaces) {
-//                if (!intf.getName().contains("p2p"))
-//                    continue;
-//
-//                final List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
-//
-//                for (InetAddress addr : addrs) {
-//                    if (!addr.isLoopbackAddress()) {
-//                        String sAddr = addr.getHostAddress().toUpperCase();
-//                        boolean isIPv4 = InetAddressUtils.isIPv4Address(sAddr);
-//
-//                        if (isIPv4 && sAddr.contains("192.168.49.")) {
-//                            return sAddr;
-//                        }
-//                    }
-//                }
-//            }
-//        } catch (Exception ex) {
-//            Log.e("getIPAddress", "error in parsing");
-//        } // for now eat exceptions
-//
-//        Log.e("getIPAddress", "returning empty ip address");
-//        return "";
-//    }
-//
-//    public static String getMACAddress(String interfaceName) {
-//        try {
-//            final List<NetworkInterface> interfaces = Collections
-//                    .list(NetworkInterface.getNetworkInterfaces());
-//
-//            for (final NetworkInterface intf : interfaces) {
-//                if (interfaceName != null) {
-//                    if (!intf.getName().equalsIgnoreCase(interfaceName))
-//                        continue;
-//                }
-//                byte[] mac = intf.getHardwareAddress();
-//                if (mac == null)
-//                    return "";
-//                StringBuilder buf = new StringBuilder();
-//                for (int idx = 0; idx < mac.length; idx++)
-//                    buf.append(String.format("%02X:", mac[idx]));
-//                if (buf.length() > 0)
-//                    buf.deleteCharAt(buf.length() - 1);
-//                return buf.toString();
-//            }
-//        } catch (Exception ex) {
-//            ex.printStackTrace();
-//        }
-//        return "";
-//
-//    }
+    @Override
+    public void onDestroy() {
+        destroy();
+        super.onDestroy();
+    }
 
     public static void log(String msg) {
         Log.e("p2p", msg);
@@ -611,42 +561,6 @@ public class P2PManager extends Service {
 
     public static Socket getSocket() {
         return (socketFromServer == null || !socketFromServer.isConnected()) ? socketFromClient : socketFromServer;
-    }
-
-    public static String getIpAddress(String mac) {
-        try {
-            List<NetworkInterface> interfaces = Collections
-                    .list(NetworkInterface.getNetworkInterfaces());
-            /*
-             * for (NetworkInterface networkInterface : interfaces) { Log.v(TAG,
-             * "interface name " + networkInterface.getName() + "mac = " +
-             * getMACAddress(networkInterface.getName())); }
-             */
-
-            for (NetworkInterface intf : interfaces) {
-                if (!intf.getName().contains("p2p"))
-                    continue;
-
-                List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
-
-                for (InetAddress addr : addrs) {
-                    // Log.v(TAG, "inside");
-                    if (!addr.isLoopbackAddress()) {
-                        // Log.v(TAG, "isnt loopback");
-                        String sAddr = addr.getHostAddress().toUpperCase();
-                        boolean isIPv4 = InetAddressUtils.isIPv4Address(sAddr);
-
-                        if (isIPv4) {
-                            if (sAddr.contains("192.168.49.")) {
-                                return sAddr;
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (Exception ex) {
-        } // for now eat exceptions
-        return "";
     }
 
     public static boolean isActive() {
@@ -726,4 +640,12 @@ public class P2PManager extends Service {
         void onSocketsConfigured();
     }
 
+    public static boolean isServiceRunning() {
+        final ActivityManager manager = (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);//use context received in broadcastreceiver
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (P2PManager.class.getName().equals(service.service.getClassName())) return true;
+
+        }
+        return false;
+    }
 }

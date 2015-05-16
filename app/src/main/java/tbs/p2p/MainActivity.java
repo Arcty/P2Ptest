@@ -1,6 +1,7 @@
 package tbs.p2p;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.*;
@@ -66,7 +67,11 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-
+        try {
+            stopService(new Intent(this, P2PManager.class));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         super.onDestroy();
     }
 
