@@ -2,13 +2,17 @@ package tbs.p2p;
 
 import android.app.Activity;
 import android.app.Dialog;
+import android.app.Service;
+import android.bluetooth.BluetoothClass;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.*;
 import android.os.Environment;
+import android.os.IBinder;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -31,8 +35,7 @@ import java.util.List;
 /**
  * Created by Michael on 5/16/2015.
  */
-public class P2PManager {
-
+public class P2PManager extends Service {
     public static Thread mainThread, getClientSocketThread, getServerSocketThread, listenerThread;
     public static final P2PClientRunnable p2pClientRunnable = new P2PClientRunnable();
     public static final P2PServerRunnable p2PServerRunnable = new P2PServerRunnable();
@@ -57,13 +60,21 @@ public class P2PManager {
     public static P2PBroadcastReceiver receiver;
     public static final IntentFilter intentFilter = new IntentFilter();
     public static P2PListener p2PListener;
-    private boolean dialogShown;
+    private static boolean dialogShown, tryingToConnect, connected;
+
 
     public P2PManager(Activity activity, P2PListener p2PListener, boolean startScan) {
         this.activity = activity;
         this.p2PListener = p2PListener;
+
+        activity.startService(new Intent(activity, P2PManager.class));
         if (startScan)
             startScan();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
     }
 
     public static final WifiP2pManager.ActionListener wifiP2PActionListener = new WifiP2pManager.ActionListener() {
@@ -88,7 +99,6 @@ public class P2PManager {
                     activity.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-
                             dialog.dismiss();
                         }
                     });
@@ -97,12 +107,10 @@ public class P2PManager {
                 }
             }
 
-
             if (peers.size() > 0)
                 showDeviceDialog();
             else
                 toast("No peers found, try again");
-
         }
     };
 
@@ -115,6 +123,7 @@ public class P2PManager {
             }
             Log.e("p2p", "receivedInfo : " + wifiP2pInfo.groupOwnerAddress.toString() + "\nisOwner? : " + wifiP2pInfo.isGroupOwner);
             if (wifiP2pInfo.groupFormed && wifiP2pInfo.isGroupOwner) {
+                toast("infoReceived :" + wifiP2pInfo.groupFormed + "formed<>owner " + wifiP2pInfo.isGroupOwner);
                 getServerSocketThreadVoid();
             } else if (wifiP2pInfo.groupFormed) {
                 getClientSocketThreadVoid(wifiP2pInfo.groupOwnerAddress.toString());
@@ -142,8 +151,9 @@ public class P2PManager {
     }
 
     private void showDeviceDialog() {
-        if (dialogShown)
+        if (dialogShown || tryingToConnect || connected)
             return;
+
         if (activity == null)
             return;
         dialog = new Dialog(activity, R.style.CustomDialog);
@@ -197,7 +207,9 @@ public class P2PManager {
         });
     }
 
-    public void startScan() {
+    private void startScan() {
+        if (tryingToConnect || connected)
+            return;
         dialogShown = false;
         if (wifiManager == null) {
             wifiManager = (WifiManager) activity.getSystemService(Context.WIFI_SERVICE);
@@ -224,6 +236,8 @@ public class P2PManager {
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
+
+        registerReceivers();
 
         if (p2PListener != null)
             p2PListener.onScanStarted();
@@ -264,6 +278,8 @@ public class P2PManager {
         log("getClientSocket");
         if (isActive())
             return;
+
+        tryingToConnect = true;
         getClientSocketThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -294,6 +310,7 @@ public class P2PManager {
         log("getServerSocket");
         if (isActive())
             return;
+        tryingToConnect = true;
         getServerSocketThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -321,6 +338,7 @@ public class P2PManager {
 
     public static void startMainThread() {
         log("starting mainthread");
+        tryingToConnect = false;
         if (p2PListener != null)
             p2PListener.onSocketsConfigured();
         if (mainThread == null || (!mainThread.isAlive() && !(mainThread.isInterrupted()))) {
@@ -359,6 +377,8 @@ public class P2PManager {
                 }
             }
             log("mainThread step 3");
+            connected = true;
+            stop = false;
             while (!stop) {
                 if (!currentlySendingSomething && messages != null && messages.size() > 0) {
                     sendMessage();
@@ -510,6 +530,7 @@ public class P2PManager {
 
     public static void destroy() {
         stop = true;
+        connected = false;
         log("destroy called");
         try {
             getSocket().close();
@@ -529,60 +550,60 @@ public class P2PManager {
     }
 
 
-    public static String getIpAddress() {
-        try {
-            final List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
-            for (NetworkInterface intf : interfaces) {
-                if (!intf.getName().contains("p2p"))
-                    continue;
-
-                final List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
-
-                for (InetAddress addr : addrs) {
-                    if (!addr.isLoopbackAddress()) {
-                        String sAddr = addr.getHostAddress().toUpperCase();
-                        boolean isIPv4 = InetAddressUtils.isIPv4Address(sAddr);
-
-                        if (isIPv4 && sAddr.contains("192.168.49.")) {
-                            return sAddr;
-                        }
-                    }
-                }
-            }
-        } catch (Exception ex) {
-            Log.e("getIPAddress", "error in parsing");
-        } // for now eat exceptions
-
-        Log.e("getIPAddress", "returning empty ip address");
-        return "";
-    }
-
-    public static String getMACAddress(String interfaceName) {
-        try {
-            final List<NetworkInterface> interfaces = Collections
-                    .list(NetworkInterface.getNetworkInterfaces());
-
-            for (final NetworkInterface intf : interfaces) {
-                if (interfaceName != null) {
-                    if (!intf.getName().equalsIgnoreCase(interfaceName))
-                        continue;
-                }
-                byte[] mac = intf.getHardwareAddress();
-                if (mac == null)
-                    return "";
-                StringBuilder buf = new StringBuilder();
-                for (int idx = 0; idx < mac.length; idx++)
-                    buf.append(String.format("%02X:", mac[idx]));
-                if (buf.length() > 0)
-                    buf.deleteCharAt(buf.length() - 1);
-                return buf.toString();
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-        return "";
-
-    }
+//    public static String getIpAddress() {
+//        try {
+//            final List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
+//            for (NetworkInterface intf : interfaces) {
+//                if (!intf.getName().contains("p2p"))
+//                    continue;
+//
+//                final List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
+//
+//                for (InetAddress addr : addrs) {
+//                    if (!addr.isLoopbackAddress()) {
+//                        String sAddr = addr.getHostAddress().toUpperCase();
+//                        boolean isIPv4 = InetAddressUtils.isIPv4Address(sAddr);
+//
+//                        if (isIPv4 && sAddr.contains("192.168.49.")) {
+//                            return sAddr;
+//                        }
+//                    }
+//                }
+//            }
+//        } catch (Exception ex) {
+//            Log.e("getIPAddress", "error in parsing");
+//        } // for now eat exceptions
+//
+//        Log.e("getIPAddress", "returning empty ip address");
+//        return "";
+//    }
+//
+//    public static String getMACAddress(String interfaceName) {
+//        try {
+//            final List<NetworkInterface> interfaces = Collections
+//                    .list(NetworkInterface.getNetworkInterfaces());
+//
+//            for (final NetworkInterface intf : interfaces) {
+//                if (interfaceName != null) {
+//                    if (!intf.getName().equalsIgnoreCase(interfaceName))
+//                        continue;
+//                }
+//                byte[] mac = intf.getHardwareAddress();
+//                if (mac == null)
+//                    return "";
+//                StringBuilder buf = new StringBuilder();
+//                for (int idx = 0; idx < mac.length; idx++)
+//                    buf.append(String.format("%02X:", mac[idx]));
+//                if (buf.length() > 0)
+//                    buf.deleteCharAt(buf.length() - 1);
+//                return buf.toString();
+//            }
+//        } catch (Exception ex) {
+//            ex.printStackTrace();
+//        }
+//        return "";
+//
+//    }
 
     public static void log(String msg) {
         Log.e("p2p", msg);
@@ -657,33 +678,33 @@ public class P2PManager {
             view = View.inflate(activity, R.layout.device_list_item, null);
             final WifiP2pDevice device = ((WifiP2pDevice) peers.toArray()[i]);
             ((TextView) view.findViewById(R.id.device_name)).setText(device.deviceName + " (" + device.deviceAddress + ")");
-            try {
-                final TextView deviceStatus = ((TextView) view.findViewById(R.id.device_status));
-                switch (device.status) {
-                    case WifiP2pDevice.AVAILABLE:
-                        deviceStatus.setText("Available");
-                        deviceStatus.setTextColor(0x259b24);
-                        break;
-                    case WifiP2pDevice.CONNECTED:
-                        deviceStatus.setText("Connected");
-                        deviceStatus.setTextColor(0x5677fc);
-                        break;
-                    case WifiP2pDevice.UNAVAILABLE:
-                        deviceStatus.setText("Available");
-                        deviceStatus.setTextColor(0x999999);
-                        break;
-                    case WifiP2pDevice.INVITED:
-                        deviceStatus.setText("Invited");
-                        deviceStatus.setTextColor(0xfb8c00);
-                        break;
-                    case WifiP2pDevice.FAILED:
-                        deviceStatus.setText("Failed");
-                        deviceStatus.setTextColor(0xe51c23);
-                        break;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
+//            try {
+            final TextView deviceStatus = ((TextView) view.findViewById(R.id.device_status));
+            switch (device.status) {
+                case WifiP2pDevice.CONNECTED:
+                    deviceStatus.setText("Connected");
+                    deviceStatus.setTextColor(0x5677fcff);
+                    break;
+                case WifiP2pDevice.UNAVAILABLE:
+                    deviceStatus.setText("Available");
+                    deviceStatus.setTextColor(0x999999ff);
+                    break;
+                case WifiP2pDevice.INVITED:
+                    deviceStatus.setText("Invited");
+                    deviceStatus.setTextColor(0xfb8c00ff);
+                    break;
+                case WifiP2pDevice.FAILED:
+                    deviceStatus.setText("Failed");
+                    deviceStatus.setTextColor(0xe51c23ff);
+                    break;
+                default:
+                    deviceStatus.setText("Available");
+                    deviceStatus.setTextColor(0x259b24ff);
+                    break;
             }
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
             return view;
         }
     }
