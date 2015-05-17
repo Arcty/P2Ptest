@@ -15,7 +15,7 @@ import android.util.Log;
  * Created by Michael on 5/12/2015.
  */
 public class P2PBroadcastReceiver extends BroadcastReceiver {
-    private WifiP2pManager wifiP2pManager;
+    public static WifiP2pManager wifiP2pManager;
     private Channel mChannel;
     private static P2PManager p2PManager;
 
@@ -34,16 +34,14 @@ public class P2PBroadcastReceiver extends BroadcastReceiver {
             int state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1);
             if (state == WifiP2pManager.WIFI_P2P_STATE_ENABLED) {
                 // TODO Wifi P2P is enabled
-                Log.e("p2pBroadcast", "p2p enabled");
+                log("p2p enabled");
             } else {
                 // TODO Wi-Fi P2P is not enabled
 //                if (p2PManager!=null)
 //                    P2PManager.toast("Please enable Wifi")
             }
         } else if (WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION.equals(action)) {
-            if (wifiP2pManager != null) {
-                wifiP2pManager.requestPeers(mChannel, p2PManager.wifiP2PPeerListener);
-            }
+
         } else if (WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION.equals(action)) {
             // Respond to new connection or disconnections
 //            WifiP2pInfo wifiInfo = intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_INFO);
@@ -67,8 +65,12 @@ public class P2PBroadcastReceiver extends BroadcastReceiver {
             }
         } else if (WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION.equals(action)) {
             // Respond to this device's wifi state changing
-            Log.e("p2pBroadCast", "wifi changed");
+            log("wifi changed");
         }
     }
 
+    public static void log(String msg) {
+        MainActivity.addLog(msg);
+        Log.e("p2p", "broadcast : "+msg);
+    }
 }
