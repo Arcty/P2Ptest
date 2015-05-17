@@ -34,7 +34,7 @@ public class P2PBroadcastReceiver extends BroadcastReceiver {
             int state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1);
             if (state == WifiP2pManager.WIFI_P2P_STATE_ENABLED) {
                 // TODO Wifi P2P is enabled
-                log("p2p enabled");
+               // log("p2p enabled");
             } else {
                 // TODO Wi-Fi P2P is not enabled
 //                if (p2PManager!=null)
@@ -65,7 +65,7 @@ public class P2PBroadcastReceiver extends BroadcastReceiver {
             }
         } else if (WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION.equals(action)) {
             // Respond to this device's wifi state changing
-            log("wifi changed");
+            //log("wifi changed");
         }
     }
 

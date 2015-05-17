@@ -109,7 +109,8 @@ public class MainActivity extends Activity {
 
         @Override
         public View getView(int i, View view, ViewGroup viewGroup) {
-            view = new TextView(mainActivity);
+            if (view == null)
+                view = new TextView(mainActivity);
             ((TextView) view).setTextSize(20);
             view.setPadding(8, 8, 8, 8);
             final String text = logs.get(i);

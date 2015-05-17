@@ -208,22 +208,24 @@ public class P2PManager extends Service {
                     } else {
                         if (host.startsWith("/"))
                             host = host.split("/")[1].trim();
-                        while ((socketFromClient == null || !socketFromClient.isConnected()) && !(socketFromClient.getInputStream().read() < 0)) {
-                            toast("trying to connect in 250ms");
+                        boolean run = true;
+                        while ((socketFromClient == null || !socketFromClient.isConnected()) && run) {
+                            log("trying to connect in 250ms");
                             try {
                                 Thread.sleep(300);
                             } catch (Exception e) {
                                 log("crashed (sleep)> " + e.getMessage());
                                 e.printStackTrace();
                             }
-                            socketFromClient = new Socket(host, 8888);
-                            toast("failed, if not connected");
+                            socketFromClient = new Socket(host, 34512);
+                            log("failed, if not connected");
+                            run = (socketFromClient.getInputStream().read() < 0);
                         }
                         startMainThread();
                     }
                 } catch (Exception e) {
-                    log("crashed (getClientSocketThread)> " + e.getMessage());
-                    e.printStackTrace();
+//                    log("crashed (getClientSocketThread)> " + e.getMessage());
+//                    e.printStackTrace();
                     try {
                         getClientSocketThreadVoid(hostIP);
                     } catch (Exception w) {
@@ -236,9 +238,10 @@ public class P2PManager extends Service {
     }
 
     public static void getServerSocketThreadVoid() {
-        log("getServerSocket");
         if (isActive())
             return;
+        log("getServerSocket");
+
         tryingToConnect = true;
         if (!(getServerSocketThread == null))
             try {
@@ -247,6 +250,7 @@ public class P2PManager extends Service {
                 log("crashed (getServerSocketThreadVoid)> " + e.getMessage());
                 e.printStackTrace();
             }
+
         getServerSocketThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -256,7 +260,7 @@ public class P2PManager extends Service {
                 try {
                     serverSocket = new ServerSocket();
                     serverSocket.setReuseAddress(true);
-                    serverSocket.bind(new InetSocketAddress(8888));
+                    serverSocket.bind(new InetSocketAddress(34512));
                     log("getServerSocket2");
                     toast("accepting");
 
@@ -265,7 +269,7 @@ public class P2PManager extends Service {
                     }
 
                     if (!isActive()) {
-                        Thread.sleep(100);
+                        Thread.sleep(150);
                         requestConnectionInfo();
                     } else {
                         toast("done accepting");
@@ -274,7 +278,7 @@ public class P2PManager extends Service {
                     }
                 } catch (Exception e) {
                     log("crashed (getServerSocketThread)> " + e.getMessage());
-                    e.printStackTrace();
+//                    e.printStackTrace();
                     try {
                         getServerSocketThreadVoid();
                     } catch (Exception y) {
@@ -327,7 +331,7 @@ public class P2PManager extends Service {
                 break;
             case SEND_MESSAGE:
                 //Todo message structure >> timeLong + sep + message
-                sendSimpleText(String.valueOf(System.currentTimeMillis()) + Message.MESSAGE_SEPERATOR + message.message);
+                sendSimpleText(String.valueOf(System.currentTimeMillis()) + Message.MESSAGE_SEPARATOR + message.message);
                 break;
         }
         messages.remove(message);
@@ -339,7 +343,7 @@ public class P2PManager extends Service {
             if (outputStream == null) {
                 outputStream = getSocket().getOutputStream();
             }
-            log("writing message : " + text);
+//            log("writing message : " + text);
             outputStream.write(text.getBytes());
             //Todo check this
             outputStream.flush();
@@ -411,10 +415,10 @@ public class P2PManager extends Service {
             if (getSocket() != null)
                 bool = (getSocket().getInputStream().read() >= 0);
         } catch (Exception e) {
-            log("crashed (isActive)> " + e.getMessage());
+//            log("crashed (isActive)> " + e.getMessage());
             e.printStackTrace();
         }
-        log("isActive: " + bool);
+//        log("isActive: " + bool);
         return bool;
     }
 
@@ -674,7 +678,10 @@ public class P2PManager extends Service {
                         log("available " + String.valueOf(inputStream.available()));
                         inputStream.read(msg, 0, inputStream.available());
                         if (msg.length > 3 && p2PListener != null) {
-                            p2PListener.onMessageReceived(new String(msg));
+                            final String msgStr = new String(msg);
+                            final String[] msgA = msgStr.split(Message.MESSAGE_SEPARATOR);
+                            log(msgA[0] + " : " + msgA[1]);
+                            p2PListener.onMessageReceived(msgStr);
                         }
                     }
                 } catch (Exception e) {
